@@ -14,9 +14,7 @@
             {{ item.label }}
           </label>
           <slot v-if="item.type === 'template'" :name="`item(${item.id})`" v-bind="{ data: item }"></slot>
-          <component v-else :is="mappedForm[item.type].component" v-on="ons(item)" v-bind="attrs(item)"
-            v-model="item.value">
-          </component>
+          <DynamicFormCore v-else v-model="item.value" :item="item" :errors-touched="errorsTouched" :id="id" />
           <ErrorMessage :message="errorsTouched[item.id]"></ErrorMessage>
         </template>
       </div>
@@ -39,30 +37,16 @@
 
 <script setup lang="ts">
 import { computed, onBeforeMount, ref, watch } from 'vue'
-import InputText from 'primevue/inputtext'
-import Textarea from 'primevue/textarea'
-import Calendar from 'primevue/calendar'
-import Dropdown from 'primevue/dropdown'
-import Password from 'primevue/password'
-import InputMask from 'primevue/inputmask'
-import InputNumber from 'primevue/inputnumber'
-import MultiSelect from 'primevue/multiselect'
 import Steps from 'primevue/steps'
 import Skeleton from 'primevue/skeleton'
 import Button from 'primevue/button'
 import { useWindowScroll } from '@vueuse/core'
 import { useForm } from 'vee-validate'
-
+import DynamicFormCore from "./DynamicFormCore.vue"
 import { asyncTimeout, isArray } from '../../utils/global'
 import type { TDynamicForm, FormResult } from '../types'
-import { useIdFor, useHydrateAttr, useHydrateOn, useFormPagination } from '../composables/dynamicForm'
-import RadioGroup from './cells/RadioGroup.vue'
-import CheckboxGroup from './cells/CheckboxGroup.vue'
+import { useIdFor, useFormPagination } from '../composables/dynamicForm'
 import ErrorMessage from './cells/ErrorMessage.vue'
-import FilepondInput from './cells/FilepondInput.vue'
-import TreeSelectComponent from './cells/TreeSelectComponent.vue'
-import LazyPaginatedSelect from './cells/LazyPaginatedSelect.vue'
-import InputFile from './cells/InputFile.vue'
 import initializeRules from '../utils/rules'
 
 //// Types
@@ -77,7 +61,6 @@ type DynamicFormProps = {
   submitIcon?: string,
 }
 type FormType = TDynamicForm['type']
-type FormTypeMap = { [key in FormType]: any }
 
 
 //// From parent
@@ -85,29 +68,9 @@ const props = defineProps<DynamicFormProps>()
 
 const idFor = (item: TDynamicForm) => useIdFor(props.id, item)
 
-const attrs = (item: TDynamicForm) => useHydrateAttr(props.id, item, errorsTouched.value)
-
-const ons = (item: TDynamicForm) => useHydrateOn(item)
-
 const withLabel = (type: FormType) => type !== "checkbox" && type !== "radio"
 
 //// To children
-const mappedForm: Omit<FormTypeMap, "template"> = {
-  number: { component: InputNumber },
-  input: { component: InputText },
-  textarea: { component: Textarea },
-  date: { component: Calendar },
-  select: { component: Dropdown },
-  password: { component: Password },
-  radio: { component: RadioGroup },
-  checkbox: { component: CheckboxGroup },
-  file: { component: InputFile },
-  filepond: { component: FilepondInput },
-  multiselect: { component: MultiSelect },
-  treeselect: { component: TreeSelectComponent },
-  lazyselect: { component: LazyPaginatedSelect },
-  mask: { component: InputMask }
-}
 
 //// Validation
 onBeforeMount(() => {
@@ -151,7 +114,7 @@ const onSubmit = handleSubmit((values) => {
   const formData = new FormData()
   Object.entries(values).forEach(([key, value]) => {
     if (isArray(value)) {
-      value.forEach((el, id) => formData.append(`${key}`, el))
+      value.forEach((el) => formData.append(`${key}`, el))
       return
     }
     formData.append(key, value)

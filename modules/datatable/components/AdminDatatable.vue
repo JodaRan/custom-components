@@ -38,8 +38,7 @@
       <Column v-if="selection" selectionMode="multiple" headerStyle="width: 3rem"></Column>
       <Column v-for="header in headers" :key="header.id" :field="header.id" :header="header.label"
         :header-class="header.noWrapHeader ? 'white-space-nowrap' : ''" :sortable="header.sortable"
-        :show-filter-menu="!!header.filterType" :filter-field="header.id" :show-filter-match-modes="false"
-        :dataType="header.filterType">
+        :show-filter-menu="!!header.filter" :filter-field="header.id" :show-filter-match-modes="false">
 
         <template #body="slotProps" v-if="slots[`item(${header.id})`] || header.transformerFn">
           <slot v-if="slots[`item(${header.id})`]" :name="`item(${header.id})`" v-bind="{ data: slotProps.data }">
@@ -50,16 +49,15 @@
         </template>
 
         <template #filter="{ filterModel }">
-          <InputText v-model="filterModel.value" type="text" class="p-column-filter"
-            :placeholder="`Rechercher par ${header.label}`" size="small" />
+          <DynamicFormCore :id="header.id" :item="additionnal(header)" v-model="filterModel.value" />
         </template>
 
         <template #filterclear="{ filterCallback }">
-          <Button type="button" icon="pi pi-times" @click="filterCallback()" severity="help" size="small"></Button>
+          <Button type="button" icon="pi pi-times" @click="filterCallback()" severity="help" class="py-1"></Button>
         </template>
 
         <template #filterapply="{ filterCallback }">
-          <Button type="button" icon="pi pi-check" @click="filterCallback()" severity="secondary" size="small"></Button>
+          <Button type="button" icon="pi pi-check" @click="filterCallback()" severity="secondary" class="py-1"></Button>
         </template>
       </Column>
     </DataTable>
@@ -87,6 +85,8 @@ import type { TDatatableHeader, TPaginatedData, TPrimeTableRequestParams, Datata
 import { DEFAULT_PAGE_LIMIT, DEFAULT_PAGE_NUMBER } from '../constants'
 import type { KeyString } from "../../utils/types"
 import MaterialIcon from "../../utils/MaterialIcon.vue"
+import DynamicFormCore from '../../dynamicForm/components/DynamicFormCore.vue'
+import type { TDynamicForm } from '../../dynamicForm/types'
 
 // Props/slots
 type TCommonProps = {
@@ -242,17 +242,22 @@ watch(debouncedSearch, searchFn)
 
 // Filter
 const hasFilter = computed<boolean | undefined>(() => {
-  return props.headers.some((header) => header.filterType)
+  return props.headers.some((header) => header.filter)
 })
 
-const filterableHeaders = computed(() => props.headers.filter((el) => el.filterType))
+const filterableHeaders = computed(() => props.headers.filter((el) => el.filter))
 
 const filter = ref<{ [key: string]: string }>()
 
 const preFilters = ref<DataTableFilterMeta | undefined>()
 
 class Filter {
-  static toReq({ filters }: DataTableFilterEvent): { [key: string]: string } {
+  /**
+   * 
+   * @param param0 filter from primevue datatabe
+   * @returns filter[key]=value as router query
+   */
+  static primevuetoRequestFilter({ filters }: DataTableFilterEvent): { [key: string]: string } {
     return Object.entries(filters).reduce((acc, [filterKey, filterValue]) => {
       return {
         ...acc,
@@ -264,7 +269,7 @@ class Filter {
     }, {})
   }
 
-  static toPrimeVueFilter() {
+  static requesttoPrimevueFilter() {
     filter.value = Object.entries(route.query)
       .filter(([key]) => /filter\[(\w+)\]/.test(key))
       .reduce((acc, [key, value]) => {
@@ -276,9 +281,22 @@ class Filter {
     filter.value = Object.entries(route.query)
       .filter(([key]) => /filter\[(\w+)\]/.test(key))
       .reduce((acc, [key]) => {
-        return { ...acc, [key]: '' }
+        return { ...acc, [key]: undefined }
       }, {})
   }
+}
+
+const additionnal = (header: TDatatableHeader): TDynamicForm | undefined => {
+  if (!header.filter) return
+  return { 
+    ...header.filter, 
+    placeholder: `Rechercher dans ${header.label}`, 
+    inputClass: "p-2 p-column-filter",
+    containerClass: "col-12",
+    label: header.label,
+    id: `filter-${header.id}`,
+    value: undefined,
+  } as TDynamicForm
 }
 
 const resetFilter = async () => {
@@ -296,13 +314,14 @@ const initFilters = () => {
 }
 
 const onFilter = async (event: DataTableFilterEvent) => {
-  filter.value = Filter.toReq(event)
+  filter.value = Filter.primevuetoRequestFilter(event)
   router.push({ name: route.name || undefined, query: { ...route.query, ...filter.value } })
   await refresh()
 }
 
+// Prefilter
 onMounted(() => {
-  Filter.toPrimeVueFilter()
+  Filter.requesttoPrimevueFilter()
   initFilters()
 })
 

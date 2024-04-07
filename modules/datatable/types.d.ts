@@ -1,11 +1,12 @@
 import type { Ref } from 'vue'
 import type { LocationQueryValue } from 'vue-router'
+import type { TDynamicForm } from '../dynamicForm/types'
 
 export type TDatatableHeader = {
   label: string
   id: string
   sortable?: boolean
-  filterType?: 'string' | 'number' | 'date'
+  filter?: Partial<TDynamicForm>
   numeric?: boolean
   noWrapHeader?: boolean
   transformerFn?: (value: any) => any

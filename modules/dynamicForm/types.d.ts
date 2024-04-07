@@ -68,6 +68,8 @@ type CommonType = {
   validation?: ((value?: SelectValues) => boolean | string) | string
   containerClass: string
   disabled?: boolean
+  placeholder?: string
+  inputClass?: string
 }
 
 type Input = {
@@ -85,7 +87,7 @@ type Select = {
   virtualScrollerOptions?: { itemSize: number }
 }
 
-type PaginatedLazySelect = {
+export type PaginatedLazySelect = {
   type: 'lazyselect'
   selectLabel?: string
   selectValue?: string

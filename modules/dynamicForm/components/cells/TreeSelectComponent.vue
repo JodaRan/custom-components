@@ -13,7 +13,7 @@
 
 <script setup lang="ts">
 import { computed, ref, type WritableComputedRef } from 'vue';
-import { copyKeys, filterWithinDescendant } from '@/modules/utils/global';
+import { copyKeys, filterWithinDescendant } from '../../../utils/global';
 import type { KeyString } from '../../../utils/types';
 
 

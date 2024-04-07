@@ -1,7 +1,15 @@
 <template>
   <Dropdown v-model="value" :options="optionsWithSkel" :optionLabel="selectLabel" :optionValue="selectValue"
-    :loading="loading" :filter="true" @filter="debouncedFilter" inputClass="w-full" class="w-full"
-    emptyFilterMessage="Pas de résultat" emptyMessage="Pas d'options" :autoFilterFocus="true">
+    :loading="loading" inputClass="w-full" class="w-full" emptyMessage="Pas d'options" @show="focused = true" @hide="focused = false">
+    <template #header>
+      <div class="px-4 mt-2">
+        <span class="p-input-icon-left w-full">
+          <i class="pi pi-search"></i>
+          <InputText :modelValue="search" @update:modelValue="debouncedFilter" class="w-full" placeholder="Rechercher" ref="inputFilter"
+            size="small" />
+        </span>
+      </div>
+    </template>
     <template #option="{ option, index }">
       <div :ref="(el) => conditionnalRef(el, index)">
         <SkeletonText v-if="option[selectLabel] === 'Chargement...'" @click.prevent.stop>
@@ -19,11 +27,12 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue"
 import Dropdown from "primevue/dropdown";
-import type { DropdownFilterEvent } from "primevue/dropdown";
-import { useIntersectionObserver, useDebounceFn } from '@vueuse/core'
+import { useIntersectionObserver, useDebounceFn, useFocus } from '@vueuse/core'
 import type { SelectValues } from "../../types"
 import type { LaravelRequest, TPaginatedData } from "../../../datatable/types"
 import SkeletonText from "../../../utils/SkeletonText.vue";
+import { asyncTimeout } from "../../../utils/global";
+import InputText from "primevue/inputtext";
 
 const props = defineProps<{
   modelValue: SelectValues
@@ -103,7 +112,7 @@ useIntersectionObserver(
   },
 )
 
-const onFilter = async ({ value }: DropdownFilterEvent) => {
+const onFilter = async (value: string | undefined = "") => {
   loading.value = true
   search.value = value
   options.value = await getOptions(1, value) || []
@@ -121,11 +130,16 @@ const getLabelFromValue = async (id: unknown) => {
 }
 
 onMounted(async () => {
+  await asyncTimeout(100)
   if (props.modelValue) {
     search.value = await getLabelFromValue(props.modelValue)
   }
   options.value = await getOptions(page.value, search.value) || []
 })
+
+// focus
+const inputFilter = ref()
+const { focused } = useFocus(inputFilter)
 
 </script>
 
