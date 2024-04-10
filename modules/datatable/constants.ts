@@ -1,4 +1,4 @@
-import type { KeyString } from '@/types/global'
+import type { KeyString } from "../utils/types";
 import type { TDatatableHeader } from './types'
 
 export const DEFAULT_PAGE_NUMBER = 0

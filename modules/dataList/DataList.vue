@@ -7,9 +7,9 @@
             currentPageReportTemplate="{currentPage} sur {totalPages}" :layout="layout">
             <template #header>
                 <div class="flex justify-content-between">
-                    <Dropdown v-model="sort" :options="sortOptions" optionLabel="label" placeholder="Tri"
-                        @change="onSortChange($event)" option-value="value" input-class="p-inputtext-sm" />
-                    <DataViewLayoutOptions
+                    <Dropdown v-model="sort" :options="sortOptions" optionLabel="label" placeholder="Tri" v-if="sortOptions"
+                        @change="onSortChange" option-value="value" input-class="p-inputtext-sm" />
+                    <DataViewLayoutOptions v-if="hasOptions"
                         :pt="{ listButton: { class: 'p-button-sm' }, gridButton: { class: 'p-button-sm' } }"
                         v-model="layout" />
                 </div>
@@ -52,17 +52,17 @@
 
 
 <script setup lang="ts">
+import { computed, onMounted, ref } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import DataView, { type DataViewPageEvent } from 'primevue/dataview';
+import DataViewLayoutOptions from 'primevue/dataviewlayoutoptions';
+import InlineMessage from 'primevue/inlinemessage';
+import { useToast } from 'primevue/usetoast';
 import { DEFAULT_PAGE_LIMIT, DEFAULT_PAGE_NUMBER } from '../datatable/constants';
 import type { TPaginatedData, TPrimeTableRequestParams } from '../datatable/types';
 import { asyncTimeout, dynamicError, isArray } from '../utils/global';
 import type { KeyString } from '../utils/types';
-import DataView, { type DataViewPageEvent } from 'primevue/dataview';
-import DataViewLayoutOptions from 'primevue/dataviewlayoutoptions';
-import type { DropdownChangeEvent } from 'primevue/dropdown';
-import InlineMessage from 'primevue/inlinemessage';
-import { useToast } from 'primevue/usetoast';
-import { computed, onMounted, ref } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
+import type { LabelValue } from '../dynamicForm/types';
 
 // Global
 const route = useRoute()
@@ -77,6 +77,10 @@ type TCommonProps = {
     selection?: any[]
     selectionKey?: string
     noFirstFetch?: boolean | undefined
+    hasOptions?: boolean
+    sortOptions?: LabelValue[]
+    noRouterChange?: boolean
+    perPage?: number
 }
 
 type TIsLazyProps = {
@@ -141,14 +145,23 @@ const dataToDisplay = computed<any[]>(() => {
 )
 
 // Sorting
-const sort = ref("")
-const sortOptions = [
-    { label: 'Prix', value: "price" },
-    { label: 'Nom', value: "name" },
-]
-const onSortChange = (event: DropdownChangeEvent) => {
-    const sort = event.value
-    router.push({ name: route.name || undefined, query: { ...route.query, sort } })
+const sortRef = ref()
+const sort = computed({
+    get() {
+        if (props.noRouterChange) return sortRef.value
+        return route.query.sort || ""
+    },
+    async set(sort) {
+        if (props.noRouterChange) {
+            sortRef.value = sort
+            return
+        }
+        await asyncTimeout(25)
+        router.push({ name: route.name || undefined, query: { ...route.query, sort } }) 
+    }
+})
+
+const onSortChange = () => {
     refresh()
 }
 
@@ -160,16 +173,45 @@ const totalRecords = computed<number | undefined>(() => {
     return typeof total === "number" ? total : undefined
 })
 
-const page = computed<number>(() => {
-    return props.lazy ? +(route.query.page || DEFAULT_PAGE_NUMBER) : DEFAULT_PAGE_NUMBER
+const perPage = computed(() => props.perPage || DEFAULT_PAGE_LIMIT)
+
+const pageRef = ref(0)
+const page = computed<number>({
+    // if the props noRouterChange is true, the pagination doesn't change the route
+    get() {
+        if (props.noRouterChange) return pageRef.value
+        return props.lazy ? +(route.query.page || DEFAULT_PAGE_NUMBER) : DEFAULT_PAGE_NUMBER
+    },
+    async set(page) {
+        if (props.noRouterChange) {
+            pageRef.value = page
+            return
+        }
+        await asyncTimeout(25)
+        router.push({ name: route.name || undefined, query: { ...route.query, page } })
+    },
 })
-const limit = computed<number>(() => {
-    return props.lazy ? +(route.query.limit || DEFAULT_PAGE_LIMIT) : DEFAULT_PAGE_LIMIT
+
+const limitRef = ref(0)
+const limit = computed<number>({
+    get() {
+        if (props.noRouterChange) return limitRef.value || perPage.value
+        return props.lazy ? +(route.query.limit || perPage.value) : perPage.value
+    },
+    async set(limit) {
+        if (props.noRouterChange) {
+            limitRef.value = limit
+            return
+        }
+        await asyncTimeout(25)
+        router.push({ name: route.name || undefined, query: { ...route.query, limit } })
+    },
 })
 
 const onPage = async (event: DataViewPageEvent) => {
-    const { page, rows } = event
-    router.push({ name: route.name || undefined, query: { ...route.query, page, limit: rows } })
+    const { page: pageEvt, rows } = event
+    page.value = pageEvt
+    limit.value = rows
     refresh()
 }
 
