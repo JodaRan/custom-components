@@ -1,14 +1,17 @@
 <template>
     <div>
         <DataView :value="dataToDisplay" data-key="id" paginator :rows="limit" :lazy="true" @page="onPage"
-            :total-records="totalRecords" :alwaysShowPaginator="false"
-            :pt="{ header: { class: 'p-0 pb-2 border-0 surface-0' } }"
+            :total-records="totalRecords" :alwaysShowPaginator="false" :pt="{
+            header: { class: 'p-0 pb-2 border-none bg-transparent' },
+            content: { class: 'bg-transparent' },
+            paginator: { class: 'bg-transparent' }
+        }" :first="first"
             paginatorTemplate="RowsPerPageDropdown FirstPageLink PrevPageLink CurrentPageReport NextPageLink LastPageLink"
             currentPageReportTemplate="{currentPage} sur {totalPages}" :layout="layout">
             <template #header>
                 <div class="flex justify-content-between">
-                    <Dropdown v-model="sort" :options="sortOptions" optionLabel="label" placeholder="Tri" v-if="sortOptions"
-                        @change="onSortChange" option-value="value" input-class="p-inputtext-sm" />
+                    <Dropdown v-model="sort" :options="sortOptions" optionLabel="label" placeholder="Tri"
+                        v-if="sortOptions" @change="onSortChange" option-value="value" input-class="p-inputtext-sm" />
                     <DataViewLayoutOptions v-if="hasOptions"
                         :pt="{ listButton: { class: 'p-button-sm' }, gridButton: { class: 'p-button-sm' } }"
                         v-model="layout" />
@@ -157,7 +160,7 @@ const sort = computed({
             return
         }
         await asyncTimeout(25)
-        router.push({ name: route.name || undefined, query: { ...route.query, sort } }) 
+        router.push({ name: route.name || undefined, query: { ...route.query, sort } })
     }
 })
 
@@ -208,6 +211,8 @@ const limit = computed<number>({
     },
 })
 
+const first = computed<number>(() => page.value * limit.value)
+
 const onPage = async (event: DataViewPageEvent) => {
     const { page: pageEvt, rows } = event
     page.value = pageEvt
@@ -227,4 +232,9 @@ defineExpose({
 </script>
 
 
-<style scoped lang="scss"></style>
+<style lang="scss">
+.p-dataview .p-paginator {
+    background-color: transparent;
+}
+
+</style>
